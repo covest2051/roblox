@@ -45,8 +45,49 @@ local function part(props)
 	return Make("Part", props)
 end
 
+--[[
+	Ориентация клина. Считаем, что высокий край WedgePart — сзади (+Z), а
+	скат смотрит вперёд (LookVector). Проверяем это в движке один раз:
+	ставим пробный клин и бросаем два луча сверху. Если окажется наоборот,
+	все клинья разворачиваются на 180° вокруг вертикали.
+]]
+local wedgeFlip: boolean? = nil
+local function detectWedgeFlip(): boolean
+	if wedgeFlip ~= nil then
+		return wedgeFlip
+	end
+	wedgeFlip = false
+	local ok = pcall(function()
+		local probe = Instance.new("WedgePart")
+		probe.Anchored = true
+		probe.Size = Vector3.new(4, 4, 4)
+		probe.CFrame = CFrame.new(0, 9000, 0)
+		probe.Parent = workspace
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		params.FilterDescendantsInstances = { probe }
+		local front = workspace:Raycast(Vector3.new(0, 9010, -1.5), Vector3.new(0, -20, 0), params)
+		local back = workspace:Raycast(Vector3.new(0, 9010, 1.5), Vector3.new(0, -20, 0), params)
+		probe:Destroy()
+		if front and back and front.Position.Y > back.Position.Y + 0.5 then
+			wedgeFlip = true
+		end
+	end)
+	if not ok then
+		wedgeFlip = false
+	end
+	if wedgeFlip then
+		print("[Pereval] WedgePart orientation is flipped in this engine — compensating")
+	end
+	return wedgeFlip :: boolean
+end
+Props.detectWedgeFlip = detectWedgeFlip
+
 local function wedge(props)
 	props.Anchored = true
+	if detectWedgeFlip() and props.CFrame then
+		props.CFrame = props.CFrame * CFrame.Angles(0, math.pi, 0)
+	end
 	return Make("WedgePart", props)
 end
 

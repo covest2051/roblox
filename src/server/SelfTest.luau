@@ -218,6 +218,11 @@ function SelfTest.run(): { string }
 		report("WARN", "pathfinding along the route", table.concat(segFails, ", "))
 	end
 
+	check("wedge orientation detected", function()
+		local Props = require(script.Parent.Props)
+		return true, if Props.detectWedgeFlip() then "flipped (compensated)" else "as assumed"
+	end)
+
 	check("balance constants sane", function()
 		return Config.Heat.FireWarmth > 0 and Config.Tent.MaxItems == 3
 	end)
