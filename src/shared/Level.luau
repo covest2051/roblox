@@ -252,9 +252,20 @@ function Level.pads()
 			table.insert(list, { x = x, z = z, r = Level.FirePadRadius, y = Level.trailY(Level.wpS(cp.wp)), id = cp.id })
 		end
 	end
-	local h = Level.Waypoints[Level.Hut.wp]
-	table.insert(list, { x = h.x, z = h.z, r = Level.Hut.padRadius, y = h.y, id = "hut" })
+	local hf = Level.hutFrame()
+	table.insert(list, { x = hf.x, z = hf.z, r = Level.Hut.padRadius, y = hf.y, id = "hut" })
 	return list
+end
+
+-- Изба: центр (за концом тропы) и направление двери (к игроку)
+function Level.hutFrame()
+	local wp = Level.Waypoints[Level.Hut.wp]
+	local bx, bz = Level.placeAt(Level.Route.length - 40, 0)
+	local dx, dz = bx - wp.x, bz - wp.z
+	local l = math.sqrt(dx * dx + dz * dz)
+	dx, dz = dx / l, dz / l
+	local back = Level.Hut.size.z / 2 + 2
+	return { x = wp.x - dx * back, z = wp.z - dz * back, y = wp.y, dirX = dx, dirZ = dz }
 end
 
 return Level
