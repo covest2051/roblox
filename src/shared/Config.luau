@@ -95,7 +95,7 @@ Config.Sounds = {
 	Gust = { Id = "rbxasset://sounds/action_falling.mp3", Volume = 0.8, Speed = 0.7 },
 	IceBreak = { Id = "rbxasset://sounds/impact_water.mp3", Volume = 0.9, Speed = 0.8 },
 	Splash = { Id = "rbxasset://sounds/impact_water.mp3", Volume = 0.7, Speed = 1.0 },
-	Pickup = { Id = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.25, Speed = 0.6 },
+	Pickup = { Id = "rbxasset://sounds/action_jump_land.mp3", Volume = 0.4, Speed = 1.4 },
 	Bell = { Id = "", Volume = 1, Speed = 1 }, -- нет встроенного колокола; подсказка-стрелка работает и без звука
 	Fire = { Id = "", Volume = 0.6, Speed = 1 },
 	TentTear = { Id = "", Volume = 0.8, Speed = 1 },

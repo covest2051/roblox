@@ -20,6 +20,7 @@ local Controls = require(script.Controls)
 local Gust = require(script.Gust)
 local Prompts = require(script.Prompts)
 local Cinematic = require(script.Cinematic)
+local Details = require(script.Details)
 
 local player = Players.LocalPlayer
 
@@ -34,6 +35,7 @@ Cinematic.build()
 Atmosphere.build()
 Gust.start()
 Controls.start()
+Details.start()
 
 if RunService:IsStudio() and Config.Debug.ShowPanel then
 	require(script.DebugPanel).build()
@@ -61,6 +63,9 @@ Net.ServerEvent.OnClientEvent:Connect(function(ev)
 			Hud.subtitles(lines)
 		end
 		Hud.setBellVisible(ev.stage == "hut")
+		if ev.stage == "slope" then
+			Details.playFriendsLights()
+		end
 	elseif t == "gustWarn" then
 		Gust.warn(ev.at)
 	elseif t == "gust" then
@@ -75,6 +80,7 @@ Net.ServerEvent.OnClientEvent:Connect(function(ev)
 	elseif t == "reset" then
 		Cinematic.closeFinish()
 		Atmosphere.resetEvents()
+		Details.reset()
 		Hud.setBellVisible(false)
 		task.spawn(function()
 			-- персонаж мог появиться раньше, чем пришло это событие

@@ -62,8 +62,16 @@ function handlers.wood(st, prompt)
 end
 
 function handlers.dryWood(st, _prompt)
+	-- у охотников в лабазе есть и спички: выручает тех, кто остался без них
+	if st.inv.matches == 0 and not st.labazMatch then
+		st.labazMatch = true
+		Inventory.addMatches(st.inv, 1)
+		PlayerService.toast(st.player, "ui.labazMatch")
+	end
 	if st.inv.wood >= Config.Wood.Max then
-		PlayerService.toast(st.player, "ui.full")
+		if not st.labazMatch then
+			PlayerService.toast(st.player, "ui.full")
+		end
 		return
 	end
 	Inventory.addWood(st.inv, Config.Wood.Max)

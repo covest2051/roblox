@@ -55,6 +55,7 @@ export type PState = {
 	lost: boolean,
 	god: boolean,
 	stashUsed: boolean,
+	labazMatch: boolean,
 	s: number,
 }
 
@@ -106,6 +107,7 @@ local function newState(player: Player): PState
 		lost = false,
 		god = false,
 		stashUsed = false,
+		labazMatch = false,
 		s = 0,
 	}
 end

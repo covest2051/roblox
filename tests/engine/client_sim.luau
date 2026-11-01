@@ -112,6 +112,7 @@ local function ev(payload)
 end
 ev({ t = "toast", key = "ui.fireLit" })
 ev({ t = "stage", stage = "slope" })
+check(cam:FindFirstChild("FriendsLights") ~= nil, "friends' flashlights appear on the slope")
 ev({ t = "stage", stage = "hut" })
 ev({ t = "gustWarn", at = ws:GetServerTimeNow() + 2 })
 ev({ t = "gust", exposed = true, dx = 0.1, dz = 0.99, push = 20, duration = 2.5 })
