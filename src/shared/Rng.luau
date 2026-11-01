@@ -34,12 +34,25 @@ function Rng.int(self: Rng, a: number, b: number): number
 	return math.min(b, a + math.floor((b - a + 1) * self:next()))
 end
 
+local TWO32 = 4294967296
+
+-- Умножение по модулю 2^32 без потери точности double
+local function mul32(a: number, b: number): number
+	local lo = (a * (b % 65536)) % TWO32
+	local hi = ((a * (b // 65536)) % 65536) * 65536
+	return (lo + hi) % TWO32
+end
+
 -- Хэш точки сетки → [0,1). Без состояния: удобно для «есть ли дерево в клетке».
+-- Нелинейное перемешивание битов (иначе на карте видны полосы).
 function Rng.hash2(x: number, z: number, seed: number): number
-	local h = (x * 374761393 + z * 668265263 + seed * 362437) % MOD
-	h = (h * MUL) % MOD
-	h = (h * MUL + 12345) % MOD
-	return h / MOD
+	local h = bit32.bxor(mul32(x % TWO32, 0x27d4eb2d), mul32(z % TWO32, 0x165667b1), mul32(seed % TWO32, 0x9e3779b1))
+	h = bit32.bxor(h, bit32.rshift(h, 15))
+	h = mul32(h, 0x85ebca6b)
+	h = bit32.bxor(h, bit32.rshift(h, 13))
+	h = mul32(h, 0xc2b2ae35)
+	h = bit32.bxor(h, bit32.rshift(h, 16))
+	return h / TWO32
 end
 
 return Rng

@@ -9,6 +9,8 @@ local Config = {}
 -- Общее
 Config.TickSeconds = 0.2 -- шаг серверной симуляции состояния игроков
 Config.Seed = 1959 -- сид генерации ландшафта и деревьев
+-- Версия рельефа: увеличь, если меняешь Heightmap/Level, чтобы «запечённый» Terrain пересобрался
+Config.TerrainVersion = 2
 
 -- Тепло (0..100)
 Config.Heat = {

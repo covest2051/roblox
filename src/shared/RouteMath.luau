@@ -1,3 +1,4 @@
+--!native
 --[[
 	RouteMath — геометрия ломаной в плоскости XZ (без Roblox-типов,
 	чтобы тестироваться в Lune). Точка — { x = number, z = number }.

@@ -93,15 +93,26 @@ end
 -------------------------------------------------------------------------------
 -- Палатка
 -------------------------------------------------------------------------------
-function Props.buildTent(parent: Instance)
+-- Положение и размеры палатки (нужны и для «запекания» сугроба у входа)
+function Props.tentFrame(): (CFrame, number, { L: number, W: number, H: number })
 	local camp = Layout.camp().tent
-	local L, W, H = 18, 11, 7.5
 	local base = v3(camp.x, camp.y, camp.z)
 	local longAxis = v3(camp.nx, 0, camp.nz)
 	local downslope = v3(camp.tx, 0, camp.tz)
 	local cf = CFrame.lookAt(base, base + longAxis)
 	-- с какой стороны (локальный X) находится низ склона
 	local sideSign = if cf.RightVector:Dot(downslope) > 0 then 1 else -1
+	return cf, sideSign, { L = 18, W = 11, H = 7.5 }
+end
+
+function Props.tentEntrance(): Vector3
+	local cf, _, size = Props.tentFrame()
+	return cf * v3(0, 1.5, -size.L / 2 - 5)
+end
+
+function Props.buildTent(parent: Instance)
+	local cf, sideSign, dims = Props.tentFrame()
+	local L, W, H = dims.L, dims.W, dims.H
 
 	local model = Make("Model", { Name = "Tent", Parent = parent })
 	part({
@@ -217,9 +228,7 @@ function Props.buildTent(parent: Instance)
 		prompt(main, "item", "prompt.take", "item." .. name, { Item = name, Hold = 0.3, Distance = 7 })
 	end
 
-	-- вход завален: позиция сугроба за торцом
-	local entrance = cf * v3(0, 1.5, -L / 2 - 5)
-	return model, entrance, cf, sideSign, { L = L, W = W, H = H }
+	return model, Props.tentEntrance(), cf, sideSign, dims
 end
 
 -- Разрезать стенку: убрать стенку, повесить два лоскута

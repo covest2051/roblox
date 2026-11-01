@@ -90,6 +90,29 @@ return function(t)
 		t.ok(n >= 3 and n <= 6, "crossings " .. n)
 	end)
 
+	t.test("no terrain seams near the route (outside the ravine)", function()
+		local minX, maxX, minZ, maxZ = Heightmap.bounds(150)
+		local worst, wx, wz = 0, 0, 0
+		for x = minX, maxX, 12 do
+			for z = minZ, maxZ, 12 do
+				local a = Heightmap.sample(x, z)
+				if a.d < 140 and a.zone ~= "ravine" and a.carve < 0.1 then
+					for _, o in { { 4, 0 }, { 0, 4 } } do
+						local b = Heightmap.sample(x + o[1], z + o[2])
+						if b.zone ~= "ravine" and b.carve < 0.1 then
+							local dh = math.abs(a.height - b.height)
+							if dh > worst then
+								worst, wx, wz = dh, x, z
+							end
+						end
+					end
+				end
+			end
+		end
+		-- 5 studs на 4 по горизонтали ≈ 51°: круче — уже «обрыв-шов»
+		t.ok(worst < 5, string.format("seam %.2f at %d,%d", worst, wx, wz))
+	end)
+
 	t.test("zones are ordered and cover the route", function()
 		local prev = -1
 		for _, z in Level.Zones do

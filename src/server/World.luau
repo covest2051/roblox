@@ -42,15 +42,18 @@ function World.build(onProgress: ((string, number) -> ())?)
 	local folder = Make("Folder", { Name = "World", Parent = workspace })
 	World.folder = folder
 
-	WorldBuilder.buildTerrain(function(p)
-		progress("terrain", p)
-	end)
-	WorldBuilder.buildOutcrops(Layout.outcrops(), Rng.new(Config.Seed + 3))
+	if World.isTerrainBaked() then
+		print("[Pereval] using pre-baked terrain")
+		progress("terrain", 1)
+	else
+		World.bakeTerrain(function(p)
+			progress("terrain", p)
+		end)
+	end
 	progress("props", 0)
 
-	local tent, entrance, cf, side, size = Props.buildTent(folder)
+	local tent, _, cf, side, size = Props.buildTent(folder)
 	World.tent, World.tentCf, World.tentSide, World.tentSize = tent, cf, side, size
-	WorldBuilder.buryTentEntrance(entrance)
 
 	Props.buildCamp(folder)
 	Props.buildPoles(folder)
@@ -76,6 +79,28 @@ function World.build(onProgress: ((string, number) -> ())?)
 	World.buildSeconds = os.clock() - t0
 	World.ready = true
 	workspace:SetAttribute("WorldReady", true)
+end
+
+-- Ключ «запечённого» рельефа: если совпадает, генерацию можно пропустить
+local function bakeKey(): string
+	return string.format("v%d-seed%d", Config.TerrainVersion, Config.Seed)
+end
+
+function World.isTerrainBaked(): boolean
+	return workspace.Terrain:GetAttribute("BakedTerrain") == bakeKey()
+end
+
+--[[
+	Сгенерировать Terrain. Можно вызвать в Studio в режиме редактирования
+	(Command Bar или Studio MCP execute_luau, datamodel Edit):
+	  require(game.ServerScriptService.Server.World).bakeTerrain()
+	и сохранить place — тогда при запуске генерация пропускается.
+]]
+function World.bakeTerrain(onProgress: ((number) -> ())?)
+	WorldBuilder.buildTerrain(onProgress)
+	WorldBuilder.buildOutcrops(Layout.outcrops(), Rng.new(Config.Seed + 3))
+	WorldBuilder.buryTentEntrance(Props.tentEntrance())
+	workspace.Terrain:SetAttribute("BakedTerrain", bakeKey())
 end
 
 -- Внутри палатки?
