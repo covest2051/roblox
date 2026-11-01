@@ -45,6 +45,7 @@ function DebugPanel.build()
 		Parent = panel,
 	})
 	Make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = panel })
+	Ui.scaled(panel)
 	local buttons = {
 		{ "→ Tent exit", "cp", 1 },
 		{ "→ Cedar", "cp", 2 },

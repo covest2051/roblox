@@ -157,6 +157,7 @@ function Hud.build()
 		PaddingBottom = UDim.new(0, 8),
 		Parent = obj,
 	})
+	Ui.scaled(obj)
 	refs.objective = Ui.label({
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -174,6 +175,7 @@ function Hud.build()
 		Size = UDim2.fromOffset(260, 150),
 		Parent = root,
 	})
+	Ui.scaled(bars)
 	Make("UIListLayout", {
 		VerticalAlignment = Enum.VerticalAlignment.Bottom,
 		SortOrder = Enum.SortOrder.LayoutOrder,
@@ -216,6 +218,7 @@ function Hud.build()
 		PaddingBottom = UDim.new(0, 8),
 		Parent = inv,
 	})
+	Ui.scaled(inv)
 	refs.inventory = Ui.label({
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -313,6 +316,7 @@ function Hud.build()
 		Parent = bell,
 	})
 	refs.bell = bell
+	Ui.scaled(bell)
 
 	-- окно чтения
 	local reader = Ui.panel({
@@ -346,6 +350,11 @@ function Hud.build()
 		Parent = reader,
 	})
 	refs.reader = reader
+	Ui.scaled(reader)
+	Ui.scaled(refs.toast)
+	Ui.scaled(refs.gust)
+	Ui.scaled(refs.tentTimer)
+	Ui.scaled(refs.subtitle)
 
 	Lang.onChange(Hud.refreshStatic)
 	Hud.refreshStatic()

@@ -41,6 +41,37 @@ function Ui.screen(): ScreenGui
 	return screen :: ScreenGui
 end
 
+-- Масштаб панелей под экран (макет рассчитан на 1280×720).
+-- UIScale вешается на отдельные панели, а не на весь ScreenGui,
+-- иначе сжались бы и полноэкранные затемнения.
+local scales: { UIScale } = {}
+local currentScale = 1
+
+local function computeScale()
+	local ok, vp = pcall(function()
+		return workspace.CurrentCamera.ViewportSize
+	end)
+	if ok and vp and vp.X > 0 then
+		currentScale = math.clamp(math.min(vp.X / 1280, vp.Y / 720), 0.6, 1.25)
+	end
+	for _, s in scales do
+		s.Scale = currentScale
+	end
+end
+
+function Ui.scaled(obj: GuiObject): GuiObject
+	local s = Make("UIScale", { Scale = currentScale, Parent = obj })
+	table.insert(scales, s)
+	return obj
+end
+
+function Ui.watchViewport()
+	computeScale()
+	pcall(function()
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(computeScale)
+	end)
+end
+
 function Ui.label(props)
 	local p = {
 		BackgroundTransparency = 1,

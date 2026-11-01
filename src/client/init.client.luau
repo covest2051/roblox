@@ -30,6 +30,7 @@ pcall(function()
 end)
 
 Ui.screen()
+Ui.watchViewport()
 Hud.build()
 Cinematic.build()
 Atmosphere.build()
