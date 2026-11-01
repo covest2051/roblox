@@ -353,7 +353,7 @@ function PlayerService.tickPlayer(st: PState, dt: number, t: number)
 	if not root or not hum or hum.Health <= 0 then
 		return
 	end
-	local pos = root.Position
+	local pos = root.CFrame.Position
 
 	-- где игрок на маршруте
 	local s, d = RouteMath.nearest(Level.Route, pos.X, pos.Z)
@@ -396,7 +396,7 @@ function PlayerService.tickPlayer(st: PState, dt: number, t: number)
 		if m:GetAttribute("Lit") then
 			local flame = m:FindFirstChild("Flame") :: BasePart
 			if flame then
-				local fp = flame.Position
+				local fp = flame.CFrame.Position
 				if (Vector3.new(fp.X, 0, fp.Z) - Vector3.new(pos.X, 0, pos.Z)).Magnitude < Config.Heat.FireRadius and math.abs(fp.Y - pos.Y) < 12 then
 					nearId = id
 					local idx = m:GetAttribute("Checkpoint")

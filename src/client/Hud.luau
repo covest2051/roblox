@@ -472,7 +472,7 @@ function Hud.update(dt: number)
 		local ch = player.Character
 		local hrp = ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if cam and hrp then
-			local to = Vector3.new(hf.x - hrp.Position.X, 0, hf.z - hrp.Position.Z)
+			local to = Vector3.new(hf.x - hrp.CFrame.Position.X, 0, hf.z - hrp.CFrame.Position.Z)
 			local look = cam.CFrame.LookVector
 			local fwd = Vector3.new(look.X, 0, look.Z)
 			if to.Magnitude > 1 and fwd.Magnitude > 0.01 then

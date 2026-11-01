@@ -4,6 +4,7 @@
 ]]
 
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -89,7 +90,34 @@ function debugCommands.s(st, arg)
 	PlayerService.teleport(st.player, Vector3.new(x, Heightmap.height(x, z) + 4, z))
 end
 
+-- Отладочная команда для первого игрока; используется Studio MCP через атрибут:
+--   workspace:SetAttribute("DebugCommand", "cp 3")
+function Actions.debug(player: Player, name: string, arg: any?)
+	local st = PlayerService.get(player)
+	local cmd = debugCommands[name]
+	if not st or not cmd or not RunService:IsStudio() then
+		return false
+	end
+	local ok, err = pcall(cmd, st, arg)
+	if not ok then
+		warn("[Debug]", name, err)
+	end
+	return ok
+end
+
 function Actions.start()
+	workspace:GetAttributeChangedSignal("DebugCommand"):Connect(function()
+		local line = workspace:GetAttribute("DebugCommand")
+		if type(line) ~= "string" or line == "" then
+			return
+		end
+		workspace:SetAttribute("DebugCommand", "")
+		local name, arg = string.match(line, "^(%S+)%s*(.*)$")
+		local player = Players:GetPlayers()[1]
+		if name and player then
+			print("[Debug] " .. line, Actions.debug(player, name, if arg ~= "" then arg else nil))
+		end
+	end)
 	Net.ClientAction.OnServerEvent:Connect(function(player, payload)
 		if type(payload) ~= "table" then
 			return
@@ -132,13 +160,7 @@ function Actions.start()
 			if not RunService:IsStudio() then
 				return
 			end
-			local cmd = debugCommands[payload.cmd]
-			if cmd then
-				local ok, err = pcall(cmd, st, payload.arg)
-				if not ok then
-					warn("[Debug]", payload.cmd, err)
-				end
-			end
+			Actions.debug(player, payload.cmd, payload.arg)
 		end
 	end)
 end

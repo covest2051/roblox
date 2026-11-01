@@ -1,0 +1,362 @@
+--[[
+	Sim — минимальная «заглушка движка» для запуска СОБРАННОГО place-файла в Lune.
+	Инстансы — настоящие (@lune/roblox проверяет имена и типы свойств),
+	а сигналы, Raycast, Terrain:WriteVoxels, персонажи и т.п. — эмулируются.
+	Цель — поймать runtime-ошибки серверного кода до Studio.
+]]
+
+local fs = require("@lune/fs")
+local luau = require("@lune/luau")
+local roblox = require("@lune/roblox")
+local task = require("@lune/task")
+
+local Sim = {}
+
+-------------------------------------------------------------------------------
+-- Сигналы
+-------------------------------------------------------------------------------
+local Signal = {}
+Signal.__index = Signal
+function Signal.new()
+	return setmetatable({ handlers = {} }, Signal)
+end
+function Signal:Connect(fn)
+	local h = { fn = fn, connected = true }
+	table.insert(self.handlers, h)
+	return {
+		Disconnect = function()
+			h.connected = false
+		end,
+	}
+end
+function Signal:Once(fn)
+	local conn
+	conn = self:Connect(function(...)
+		conn.Disconnect()
+		fn(...)
+	end)
+	return conn
+end
+function Signal:Fire(...)
+	for _, h in table.clone(self.handlers) do
+		if h.connected then
+			task.spawn(h.fn, ...)
+		end
+	end
+end
+function Signal:Wait()
+	local thread = coroutine.running()
+	self:Once(function(...)
+		task.spawn(thread, ...)
+	end)
+	return coroutine.yield()
+end
+Sim.Signal = Signal
+
+local signals = setmetatable({}, { __mode = "k" })
+local function signalOf(inst, name)
+	signals[inst] = signals[inst] or {}
+	local s = signals[inst][name]
+	if not s then
+		s = Signal.new()
+		signals[inst][name] = s
+	end
+	return s
+end
+Sim.signalOf = signalOf
+
+local function implementEvent(className, name)
+	roblox.implementProperty(className, name, function(self)
+		return signalOf(self, name)
+	end)
+end
+
+for _, e in {
+	{ "Players", "PlayerAdded" },
+	{ "Players", "PlayerRemoving" },
+	{ "Player", "CharacterAdded" },
+	{ "ProximityPromptService", "PromptTriggered" },
+	{ "RemoteEvent", "OnServerEvent" },
+	{ "RemoteEvent", "OnClientEvent" },
+	{ "BasePart", "Touched" },
+	{ "RunService", "Heartbeat" },
+	{ "RunService", "RenderStepped" },
+	{ "ProximityPrompt", "Triggered" },
+} do
+	implementEvent(e[1], e[2])
+end
+
+roblox.implementMethod("Instance", "WaitForChild", function(self, name, timeout)
+	local t0 = os.clock()
+	while true do
+		local c = self:FindFirstChild(name)
+		if c then
+			return c
+		end
+		if os.clock() - t0 > (timeout or 5) then
+			if timeout then
+				return nil
+			end
+			error("WaitForChild timed out: " .. self:GetFullName() .. "." .. name)
+		end
+		task.wait(0.05)
+	end
+end)
+roblox.implementMethod("Instance", "GetAttributeChangedSignal", function(self, name)
+	return signalOf(self, "Attr:" .. name)
+end)
+roblox.implementMethod("Instance", "GetPropertyChangedSignal", function(self, name)
+	return signalOf(self, "Prop:" .. name)
+end)
+
+-------------------------------------------------------------------------------
+-- Время, физика-заглушки
+-------------------------------------------------------------------------------
+Sim.timeOffset = 0
+roblox.implementMethod("Workspace", "GetServerTimeNow", function()
+	return os.clock() + Sim.timeOffset
+end)
+
+-- Position/AssemblyLinearVelocity нельзя переопределить через implementProperty:
+-- игровой код читает CFrame.Position, а скорость задаём явно при создании персонажа.
+roblox.implementMethod("PVInstance", "PivotTo", function(self, cf)
+	local root = self:FindFirstChild("HumanoidRootPart") or self.PrimaryPart
+	if root then
+		root.CFrame = cf
+	end
+end)
+
+-------------------------------------------------------------------------------
+-- Terrain: проверяем аргументы WriteVoxels как настоящий движок
+-------------------------------------------------------------------------------
+Sim.terrain = { writes = 0, voxels = 0, balls = {}, errors = {} }
+roblox.implementMethod("Terrain", "Clear", function() end)
+roblox.implementMethod("Terrain", "SetMaterialColor", function() end)
+roblox.implementMethod("Terrain", "FillBall", function(_, center, radius, material)
+	table.insert(Sim.terrain.balls, { c = center, r = radius, m = material })
+end)
+roblox.implementMethod("Terrain", "WriteVoxels", function(_, region, res, mats, occ)
+	local T = Sim.terrain
+	local function err(msg)
+		table.insert(T.errors, msg)
+	end
+	if res ~= 4 then
+		err("resolution must be 4")
+	end
+	local size = region.Size
+	local min = region.CFrame.Position - size / 2
+	for _, c in { min.X, min.Y, min.Z, size.X, size.Y, size.Z } do
+		if math.abs(c / 4 - math.round(c / 4)) > 1e-6 then
+			err("region not aligned to voxel grid: " .. tostring(min) .. " " .. tostring(size))
+			break
+		end
+	end
+	local nx, ny, nz = math.round(size.X / 4), math.round(size.Y / 4), math.round(size.Z / 4)
+	if nx * ny * nz > 4194304 then
+		err("region too large")
+	end
+	if #mats ~= nx or #occ ~= nx then
+		err(string.format("x dim %d/%d vs %d", #mats, #occ, nx))
+		return
+	end
+	for i = 1, nx do
+		if #mats[i] ~= ny or #occ[i] ~= ny then
+			err(string.format("y dim %d vs %d", #mats[i], ny))
+			return
+		end
+		for j = 1, ny do
+			if #mats[i][j] ~= nz or #occ[i][j] ~= nz then
+				err("z dim mismatch")
+				return
+			end
+			for k = 1, nz do
+				local o = occ[i][j][k]
+				if type(o) ~= "number" or o < 0 or o > 1 then
+					err("bad occupancy " .. tostring(o))
+					return
+				end
+				if typeof(mats[i][j][k]) ~= "EnumItem" then
+					err("bad material")
+					return
+				end
+			end
+		end
+	end
+	T.writes += 1
+	T.voxels += nx * ny * nz
+end)
+
+-------------------------------------------------------------------------------
+-- Raycast: по рельефу (heightmap) и шарам FillBall; детали не учитываются
+-------------------------------------------------------------------------------
+Sim.heightAt = nil :: ((number, number) -> number)?
+roblox.implementMethod("WorldRoot", "Raycast", function(_, origin, dir, _params)
+	local len = dir.Magnitude
+	local steps = math.max(4, math.ceil(len / 1.5))
+	for i = 1, steps do
+		local p = origin + dir * (i / steps)
+		if Sim.heightAt and p.Y < Sim.heightAt(p.X, p.Z) then
+			return { Position = p, Instance = nil, Material = roblox.Enum.Material.Snow }
+		end
+		for _, b in Sim.terrain.balls do
+			if (p - b.c).Magnitude < b.r then
+				return { Position = p, Instance = nil, Material = b.m }
+			end
+		end
+	end
+	return nil
+end)
+
+-------------------------------------------------------------------------------
+-- Сервисы
+-------------------------------------------------------------------------------
+Sim.sent = {} -- { player, payload }
+roblox.implementMethod("RemoteEvent", "FireClient", function(_, player, payload)
+	table.insert(Sim.sent, { player = player, payload = payload })
+end)
+roblox.implementMethod("RemoteEvent", "FireAllClients", function(_, payload)
+	table.insert(Sim.sent, { player = "all", payload = payload })
+end)
+roblox.implementMethod("Sound", "Play", function() end)
+roblox.implementMethod("Sound", "Stop", function() end)
+roblox.implementMethod("RunService", "IsStudio", function()
+	return true
+end)
+roblox.implementMethod("RunService", "IsServer", function()
+	return true
+end)
+roblox.implementMethod("Players", "GetPlayers", function(self)
+	local out = {}
+	for _, c in self:GetChildren() do
+		if c.ClassName == "Player" then
+			table.insert(out, c)
+		end
+	end
+	return out
+end)
+roblox.implementMethod("Players", "GetPlayerFromCharacter", function(self, ch)
+	for _, p in self:GetChildren() do
+		if p.ClassName == "Player" and p.Character == ch then
+			return p
+		end
+	end
+	return nil
+end)
+roblox.implementMethod("Player", "RequestStreamAroundAsync", function() end)
+roblox.implementMethod("Player", "LoadCharacter", function(self)
+	local ch = roblox.Instance.new("Model")
+	ch.Name = self.Name
+	local root = roblox.Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = roblox.Vector3.new(2, 2, 1)
+	root.CFrame = roblox.CFrame.new(0, 405, 0)
+	root.AssemblyLinearVelocity = roblox.Vector3.zero
+	root.Parent = ch
+	local head = roblox.Instance.new("Part")
+	head.Name = "Head"
+	head.Parent = ch
+	local hum = roblox.Instance.new("Humanoid")
+	hum.Health = 100
+	hum.Parent = ch
+	ch.PrimaryPart = root
+	ch.Parent = Sim.game:GetService("Workspace")
+	self.Character = ch
+	signalOf(self, "CharacterAdded"):Fire(ch)
+end)
+roblox.implementMethod("CollectionService", "GetTagged", function(_, tag)
+	local out = {}
+	for _, d in Sim.game:GetDescendants() do
+		if d:HasTag(tag) then
+			table.insert(out, d)
+		end
+	end
+	return out
+end)
+roblox.implementMethod("CollectionService", "GetInstanceAddedSignal", function(self, tag)
+	return signalOf(self, "Added:" .. tag)
+end)
+roblox.implementMethod("PathfindingService", "CreatePath", function()
+	return {
+		Status = roblox.Enum.PathStatus.Success,
+		ComputeAsync = function() end,
+	}
+end)
+
+-------------------------------------------------------------------------------
+-- Загрузка place и запуск скриптов
+-------------------------------------------------------------------------------
+local RaycastParamsMock = {
+	new = function()
+		return { FilterType = nil, FilterDescendantsInstances = {}, IgnoreWater = false }
+	end,
+}
+
+local cache = {}
+local function makeEnv(script)
+	return {
+		script = script,
+		game = Sim.game,
+		workspace = Sim.game:GetService("Workspace"),
+		require = Sim.require,
+		Instance = roblox.Instance,
+		Vector3 = roblox.Vector3,
+		Vector2 = roblox.Vector2,
+		CFrame = roblox.CFrame,
+		Color3 = roblox.Color3,
+		UDim = roblox.UDim,
+		UDim2 = roblox.UDim2,
+		Region3 = roblox.Region3,
+		NumberSequence = roblox.NumberSequence,
+		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
+		ColorSequence = roblox.ColorSequence,
+		NumberRange = roblox.NumberRange,
+		Enum = roblox.Enum,
+		RaycastParams = RaycastParamsMock,
+		task = task,
+		warn = function(...)
+			Sim.warnings = Sim.warnings or {}
+			local parts = {}
+			for _, v in { ... } do
+				table.insert(parts, tostring(v))
+			end
+			table.insert(Sim.warnings, table.concat(parts, " "))
+			print("WARN", ...)
+		end,
+	}
+end
+
+function Sim.require(module)
+	if cache[module] ~= nil then
+		return cache[module]
+	end
+	assert(module.ClassName == "ModuleScript", "require of non-module " .. tostring(module))
+	local fn = luau.load(module.Source, { debugName = module:GetFullName(), environment = makeEnv(module) })
+	local result = fn()
+	cache[module] = result
+	return result
+end
+
+function Sim.runScript(scriptInst)
+	local fn = luau.load(scriptInst.Source, { debugName = scriptInst:GetFullName(), environment = makeEnv(scriptInst) })
+	return task.spawn(fn)
+end
+
+function Sim.loadPlace(path)
+	Sim.game = roblox.deserializePlace(fs.readFile(path))
+	local ws = Sim.game:GetService("Workspace")
+	if not ws:FindFirstChild("Terrain") then
+		local t = roblox.Instance.new("Terrain")
+		t.Name = "Terrain"
+		t.Parent = ws
+	end
+	return Sim.game
+end
+
+function Sim.addPlayer(name)
+	local p = roblox.Instance.new("Player")
+	p.Name = name
+	p.Parent = Sim.game:GetService("Players")
+	return p
+end
+
+return Sim

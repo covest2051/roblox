@@ -238,9 +238,9 @@ function Atmosphere.playLights(onLine: (string) -> ())
 	onLine("story.lights.1")
 
 	-- над перевалом: «назад» по маршруту и высоко
-	local back = Vector3.new(Level.Waypoints[1].x, 0, Level.Waypoints[1].z) - Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+	local back = Vector3.new(Level.Waypoints[1].x, 0, Level.Waypoints[1].z) - Vector3.new(hrp.CFrame.Position.X, 0, hrp.CFrame.Position.Z)
 	back = if back.Magnitude > 1 then back.Unit else Vector3.new(0, 0, -1)
-	local origin = hrp.Position + back * 380 + Vector3.new(80, 120, 0)
+	local origin = hrp.CFrame.Position + back * 380 + Vector3.new(80, 120, 0)
 	local ball = Make("Part", {
 		Name = "SkyLight",
 		Shape = Enum.PartType.Ball,
