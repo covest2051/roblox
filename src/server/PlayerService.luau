@@ -462,7 +462,9 @@ function PlayerService.tickPlayer(st: PState, dt: number, t: number)
 	end
 
 	-- бег
-	local moving = hum.MoveDirection.Magnitude > 0.1
+	-- MoveDirection не реплицируется на сервер — смотрим на скорость
+	local v = root.AssemblyLinearVelocity
+	local moving = Vector3.new(v.X, 0, v.Z).Magnitude > 3
 	local S = Config.Stamina
 	if st.exhausted and st.stamina >= S.MinToStart then
 		st.exhausted = false
