@@ -36,11 +36,13 @@ Interactions.start()
 Hazards.start()
 Actions.start()
 
+-- Автоспавн выключен ещё в default.project.json (Players.CharacterAutoLoads = false),
+-- чтобы никто не появился до того, как под ногами есть рельеф.
 Players.CharacterAutoLoads = true
 for _, p in Players:GetPlayers() do
-	if not p.Character then
+	task.spawn(function()
 		p:LoadCharacter()
-	end
+	end)
 end
 
 if RunService:IsStudio() and Config.Debug.AutoSelfTest then
