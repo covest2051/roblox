@@ -211,11 +211,17 @@ end)
 -- Сервисы
 -------------------------------------------------------------------------------
 Sim.sent = {} -- { player, payload }
-roblox.implementMethod("RemoteEvent", "FireClient", function(_, player, payload)
+roblox.implementMethod("RemoteEvent", "FireClient", function(self, player, payload)
 	table.insert(Sim.sent, { player = player, payload = payload })
+	if Sim.clientMode and player == Sim.localPlayer then
+		signalOf(self, "OnClientEvent"):Fire(payload)
+	end
 end)
-roblox.implementMethod("RemoteEvent", "FireAllClients", function(_, payload)
+roblox.implementMethod("RemoteEvent", "FireAllClients", function(self, payload)
 	table.insert(Sim.sent, { player = "all", payload = payload })
+	if Sim.clientMode then
+		signalOf(self, "OnClientEvent"):Fire(payload)
+	end
 end)
 roblox.implementMethod("Sound", "Play", function() end)
 roblox.implementMethod("Sound", "Stop", function() end)
@@ -283,6 +289,64 @@ roblox.implementMethod("PathfindingService", "CreatePath", function()
 end)
 
 -------------------------------------------------------------------------------
+-- Клиентские заглушки (сервер и клиент в одном DataModel)
+-------------------------------------------------------------------------------
+Sim.clientMode = false
+Sim.localPlayer = nil
+for _, e in {
+	{ "UserInputService", "InputBegan" },
+	{ "UserInputService", "InputEnded" },
+	{ "TextButton", "Activated" },
+	{ "Sound", "Ended" },
+	{ "Instance", "DescendantAdded" },
+	{ "Instance", "DescendantRemoving" },
+	{ "Instance", "ChildAdded" },
+	{ "Instance", "ChildRemoved" },
+} do
+	implementEvent(e[1], e[2])
+end
+roblox.implementMethod("RemoteEvent", "FireServer", function(self, payload)
+	signalOf(self, "OnServerEvent"):Fire(Sim.localPlayer, payload)
+end)
+Sim.tweens = 0
+roblox.implementMethod("TweenService", "Create", function(_, inst, _info, goal)
+	Sim.tweens += 1
+	return {
+		Play = function()
+			-- мгновенно применяем цель: проверяет имена и типы свойств
+			for k, v in goal do
+				inst[k] = v
+			end
+		end,
+		Cancel = function() end,
+	}
+end)
+roblox.implementMethod("RunService", "BindToRenderStep", function(_, name, _prio, fn)
+	Sim.renderSteps = Sim.renderSteps or {}
+	Sim.renderSteps[name] = fn
+end)
+roblox.implementMethod("RunService", "UnbindFromRenderStep", function(_, name)
+	if Sim.renderSteps then
+		Sim.renderSteps[name] = nil
+	end
+end)
+roblox.implementMethod("ContextActionService", "BindAction", function(_, name, fn)
+	Sim.actions = Sim.actions or {}
+	Sim.actions[name] = fn
+end)
+roblox.implementMethod("ContextActionService", "SetTitle", function() end)
+roblox.implementMethod("ContextActionService", "SetPosition", function() end)
+roblox.implementMethod("StarterGui", "SetCoreGuiEnabled", function() end)
+roblox.implementMethod("StarterGui", "SetCore", function() end)
+
+local TweenInfoMock = {
+	new = function(...)
+		return { ... }
+	end,
+}
+Sim.TweenInfo = TweenInfoMock
+
+-------------------------------------------------------------------------------
 -- Загрузка place и запуск скриптов
 -------------------------------------------------------------------------------
 local RaycastParamsMock = {
@@ -310,8 +374,10 @@ local function makeEnv(script)
 		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
 		ColorSequence = roblox.ColorSequence,
 		NumberRange = roblox.NumberRange,
+		Vector3int16 = roblox.Vector3int16,
 		Enum = roblox.Enum,
 		RaycastParams = RaycastParamsMock,
+		TweenInfo = TweenInfoMock,
 		task = task,
 		warn = function(...)
 			Sim.warnings = Sim.warnings or {}

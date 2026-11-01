@@ -76,8 +76,12 @@ Net.ServerEvent.OnClientEvent:Connect(function(ev)
 		Cinematic.closeFinish()
 		Atmosphere.resetEvents()
 		Hud.setBellVisible(false)
-		task.defer(function()
-			player.CharacterAdded:Wait()
+		task.spawn(function()
+			-- персонаж мог появиться раньше, чем пришло это событие
+			local t0 = os.clock()
+			repeat
+				task.wait(0.2)
+			until (player.Character and player.Character:FindFirstChild("HumanoidRootPart")) or os.clock() - t0 > 10
 			Cinematic.playIntro(function()
 				Hud.subtitles({ "story.tent.1", "story.tent.2", "story.tent.3" })
 			end)
@@ -95,10 +99,6 @@ Net.ServerEvent.OnClientEvent:Connect(function(ev)
 		Hud.toast("ui.iceCrack")
 	elseif t == "tentCut" then
 		Atmosphere.play("TentTear")
-	elseif t == "zone" then
-		if ev.id == "forest" then
-			Hud.subtitle("story.firstFire", 3)
-		end
 	elseif t == "selftest" then
 		for _, line in ev.lines do
 			print(line)
@@ -118,6 +118,18 @@ task.spawn(function()
 				Hud.subtitle(key, 5)
 			end)
 		end
+	end
+end)
+
+-- подсказка, когда впервые стало по-настоящему холодно
+local coldTipShown = false
+player:GetAttributeChangedSignal("Heat"):Connect(function()
+	local h = player:GetAttribute("Heat") or 100
+	if not coldTipShown and h < 35 then
+		coldTipShown = true
+		Hud.subtitle("story.firstFire", 4)
+	elseif h > 80 then
+		coldTipShown = false
 	end
 end)
 

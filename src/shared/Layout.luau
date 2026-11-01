@@ -173,7 +173,7 @@ Layout.logs = memo("logs", function()
 		table.insert(out, {
 			x = x,
 			z = z,
-			y = rimY(s) + 0.5,
+			y = rimY(s) - 0.4, -- верх бревна ~0.7 над берегом: можно зайти без прыжка
 			-- поперёк ручья
 			dirX = -dz,
 			dirZ = dx,
