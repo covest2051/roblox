@@ -3,7 +3,7 @@
 Короткая игра для Roblox про выживание в буране: один законченный уровень на 10–15 минут.
 Февраль 2026 года, Северный Урал. Ты — участник памятной группы, которая идёт маршрутом туристов 1959 года по склону Холатчахль. Ночью палатку заваливает снегом. Нужно выбрать 3 вещи из 5, разрезать стенку и дойти до избы, куда ушли остальные. По дороге — каменные гряды, кедр, лес, овраг с ручьём.
 
-Дизайн-документ: [`docs/DESIGN.md`](docs/DESIGN.md) · Чек-лист плейтеста: [`docs/PLAYTEST.md`](docs/PLAYTEST.md) · Локальная сессия Claude + Studio MCP: [`docs/LOCAL_SESSION.md`](docs/LOCAL_SESSION.md)
+Дизайн-документ: [`docs/DESIGN.md`](docs/DESIGN.md) · Публикация: [`docs/PUBLISH.md`](docs/PUBLISH.md) · Чек-лист плейтеста: [`docs/PLAYTEST.md`](docs/PLAYTEST.md) · Локальная сессия Claude + Studio MCP: [`docs/LOCAL_SESSION.md`](docs/LOCAL_SESSION.md)
 
 ![Карта уровня](docs/img/map.png)
 
